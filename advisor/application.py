@@ -1,5 +1,7 @@
 import logging
 import logging.handlers
+import numpy as np
+import tensorflow
 
 from wsgiref.simple_server import make_server
 
