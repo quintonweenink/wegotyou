@@ -1,9 +1,16 @@
 import logging
 import logging.handlers
 import numpy as np
-import tensorflow
-
+import tensorflow as tf
+import mysql.connector
 from wsgiref.simple_server import make_server
+import os
+
+host = os.environ['WEGOTYOU_DB_HOST']
+port = os.environ['WEGOTYOU_DB_PORT']
+username = os.environ['WEGOTYOU_DB_USERNAME']
+password = os.environ['WEGOTYOU_DB_PASSWORD']
+database = os.environ['WEGOTYOU_DB_DATABASE']
 
 
 # Create logger
@@ -114,6 +121,30 @@ welcome = """
 </html>
 """
 
+
+def run_advice():
+    try:
+        connection = mysql.connector.connect(host=host,
+                                             port=port,
+                                             user=username,
+                                             passwd=password,
+                                             database=database)
+        sql_insert_query = """ INSERT INTO `advice`
+                              (`user_id`, `type`, `advice`) VALUES (1,'INVESTMENT', '{message: "Your growth would benefit by investing in this account", graph: {1, 2, 3, 4}, accountFrom: 1, accountTo: 2}')"""
+        cursor = connection.cursor()
+        result  = cursor.execute(sql_insert_query)
+        connection.commit()
+        print ("Record inserted successfully into advice table")
+    except mysql.connector.Error as error :
+        connection.rollback() #rollback if any exception occured
+        print("Failed inserting record into advice table {}".format(error))
+    finally:
+        #closing database connection.
+        if(connection.is_connected()):
+            cursor.close()
+            connection.close()
+            print("MySQL connection is closed")
+
 def application(environ, start_response):
     path    = environ['PATH_INFO']
     method  = environ['REQUEST_METHOD']
@@ -128,6 +159,14 @@ def application(environ, start_response):
         except (TypeError, ValueError):
             logger.warning('Error retrieving request body for async work.')
         response = ''
+    elif method == 'GET' and path == '/advice':
+        try:
+            run_advice()
+            response = 'Advice is running'
+            logger.info("Advice was run")
+        except (TypeError, ValueError):
+            logger.warning('Error retrieving request body for async work.')
+            response = 'Failure'
     else:
         response = welcome
     status = '200 OK'
